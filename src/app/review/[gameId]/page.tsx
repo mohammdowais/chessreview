@@ -2,13 +2,11 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { Chess } from "chess.js";
 import dynamic from "next/dynamic";
 import { Loader2, ArrowLeft, ChevronLeft, ChevronRight, FastForward, Rewind } from "lucide-react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { AuthModal } from "@/components/AuthModal";
 import { getOrCreateGuestToken, isGuestLimitReached } from "@/lib/guest-utils";
 import { ChessEngine } from "@/lib/engine";
 import { getMoveClassification, getClassificationColor, MoveClassification } from "@/lib/chess-utils";
@@ -53,12 +51,8 @@ export default function ReviewPage() {
     const { gameId } = useParams();
     const router = useRouter();
 
-    const { data: session } = useSession();
-    const isAuthed = !!session?.user;
-
     const [loadingMsg, setLoadingMsg] = useState("Loading Game Data...");
     const [error, setError] = useState("");
-    const [showAuthModal, setShowAuthModal] = useState(false);
 
     // Players
     const [whitePlayer, setWhitePlayer] = useState("White");
@@ -79,8 +73,8 @@ export default function ReviewPage() {
     const engineRef = useRef<ChessEngine | null>(null);
 
     const init = async () => {
-        if (!isAuthed && isGuestLimitReached()) {
-            setShowAuthModal(true);
+        if (isGuestLimitReached()) {
+            setError("Analysis limit reached for today. Please try again in 24 hours.");
             return;
         }
 
@@ -147,7 +141,7 @@ export default function ReviewPage() {
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gameId, isAuthed]);
+    }, [gameId]);
 
     const startAnalysis = async (movesSan: string[], movesUci: string[]) => {
         setAnalyzing(true);
@@ -297,15 +291,6 @@ export default function ReviewPage() {
 
     return (
         <div className="min-h-screen flex flex-col bg-background text-foreground animate-in fade-in duration-500">
-            {showAuthModal && (
-                <AuthModal
-                    onClose={() => router.push("/")}
-                    onSuccess={() => {
-                        setShowAuthModal(false);
-                        init();
-                    }}
-                />
-            )}
             {/* Header */}
             <header className="w-full p-4 border-b bg-card flex justify-between items-center z-10 shrink-0">
                 <div className="flex items-center gap-4">

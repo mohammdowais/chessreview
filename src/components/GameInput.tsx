@@ -16,8 +16,8 @@ import {
 type Tab = "url" | "pgn";
 
 export function GameInput() {
-    const { data: session } = useSession();
-    const isAuthed = !!session?.user;
+    // const { data: session } = useSession();
+    // const isAuthed = !!session?.user;
 
     const [tab, setTab] = useState<Tab>("url");
     const [url, setUrl] = useState("");
@@ -32,10 +32,10 @@ export function GameInput() {
     useEffect(() => { setError(""); }, [tab]);
 
     function checkGuestLimit(action: () => void) {
-        if (isAuthed) {
-            action();
-            return;
-        }
+        // if (isAuthed) {
+        //     action();
+        //     return;
+        // }
         const count = getGuestCount();
         if (count >= GUEST_LIMIT) {
             pendingActionRef.current = action;
@@ -199,13 +199,13 @@ export function GameInput() {
                 )}
 
                 {/* Guest usage badge */}
-                {!isAuthed && (
-                    <p className="text-xs text-muted-foreground">
-                        {guestRemaining > 0
-                            ? `${guestRemaining} free ${guestRemaining === 1 ? "analysis" : "analyses"} remaining — sign in for unlimited`
-                            : "Free limit reached — sign in to continue"}
-                    </p>
-                )}
+                {/* {!isAuthed && ( */}
+                <p className="text-xs text-muted-foreground">
+                    {guestRemaining > 0
+                        ? `${guestRemaining} free ${guestRemaining === 1 ? "analysis" : "analyses"} remaining`
+                        : "Free limit reached — come back tomorrow"}
+                </p>
+                {/* )} */}
             </div>
         </>
     );

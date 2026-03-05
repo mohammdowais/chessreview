@@ -26,17 +26,15 @@ function checkRateLimit(ip: string, maxPerMin: number): { allowed: boolean; retr
 }
 
 // ----- In-Memory Guest Token Gate -----
-const guestTokenMap = new Map<string, number>(); // token -> count
+type GuestEntry = { count: number; resetAt: number };
+const guestTokenMap = new Map<string, GuestEntry>();
 
 export async function POST(req: Request) {
     try {
         const ip = getIp(req);
-        const session = await auth();
-        const isAuthed = !!session?.user;
 
-        // Rate limit: 60/min for authed, 10/min for guests
-        const limit = isAuthed ? 60 : 10;
-        const rl = checkRateLimit(ip, limit);
+        // Rate limit: 10/min (everyone is now a guest)
+        const rl = checkRateLimit(ip, 10);
         if (!rl.allowed) {
             return NextResponse.json(
                 { error: 'Too many requests. Please slow down.' },
@@ -47,24 +45,36 @@ export async function POST(req: Request) {
             );
         }
 
-        // Guest-token gate (server-side defence for the 3-game limit)
-        if (!isAuthed) {
-            const guestToken = req.headers.get('x-guest-token');
-            if (!guestToken) {
-                return NextResponse.json(
-                    { error: 'bad_request', message: 'Guest token is required.' },
-                    { status: 400 }
-                );
-            }
-            const count = guestTokenMap.get(guestToken) ?? 0;
-            if (count >= 3) {
-                return NextResponse.json(
-                    { error: 'limit_reached', message: 'Sign in to analyze more games.' },
-                    { status: 403 }
-                );
-            }
-            guestTokenMap.set(guestToken, count + 1);
+        // Guest-token gate (server-side defence for the 10-game limit)
+        const guestToken = req.headers.get('x-guest-token');
+        if (!guestToken) {
+            return NextResponse.json(
+                { error: 'bad_request', message: 'Guest token is required.' },
+                { status: 400 }
+            );
         }
+
+        const now = Date.now();
+        let entry = guestTokenMap.get(guestToken);
+
+        // Reset count if 24 hours have passed
+        if (entry && now > entry.resetAt) {
+            entry = undefined;
+        }
+
+        if (!entry) {
+            entry = { count: 0, resetAt: now + 24 * 60 * 60 * 1000 };
+            guestTokenMap.set(guestToken, entry);
+        }
+
+        if (entry.count >= 10) {
+            return NextResponse.json(
+                { error: 'limit_reached', message: 'Analysis limit reached for today. Try again in 24 hours.' },
+                { status: 403 }
+            );
+        }
+
+        entry.count++;
 
         const { gameId } = await req.json();
 
