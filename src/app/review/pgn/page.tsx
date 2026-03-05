@@ -42,7 +42,10 @@ type MoveAnalysis = {
     bestMove: string;
     classification: MoveClassification;
 };
-
+type CustomSquareProps = {
+  square: string;
+  children?: React.ReactNode;
+};
 export default function PgnReviewPage() {
     const router = useRouter();
 
@@ -170,27 +173,48 @@ export default function PgnReviewPage() {
     const currentClassification = currentMoveIndex >= 0 ? analyzedMoves[currentMoveIndex]?.classification : null;
     const currentBadge = currentClassification ? getClassificationBadge(currentClassification) : null;
 
-    const squareRenderer = ({ square, children }: SquareHandlerArgs & { children?: React.ReactNode }) => (
+    const squareRenderer = ({ square, children }: CustomSquareProps) => (
         <div style={{ position: "relative", width: "100%", height: "100%" }}>
             {children}
+
             {currentBadge && square === currentDestSquare && (
-                <div style={{
-                    position: "absolute", top: "2px", right: "2px",
-                    width: "28%", height: "28%", minWidth: 14, minHeight: 14,
-                    borderRadius: "50%", backgroundColor: currentBadge.bg,
-                    border: `2px solid ${currentBadge.ring}`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    zIndex: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.45)", pointerEvents: "none",
-                }}>
-                    <span style={{
-                        color: currentBadge.text, fontSize: "clamp(6px, 1.5vw, 11px)",
-                        fontWeight: 900, lineHeight: 1, fontFamily: "serif",
-                        letterSpacing: "-0.5px", userSelect: "none",
-                    }}>{currentBadge.symbol}</span>
-                </div>
+            <div
+                style={{
+                position: "absolute",
+                top: "2px",
+                right: "2px",
+                width: "28%",
+                height: "28%",
+                minWidth: 14,
+                minHeight: 14,
+                borderRadius: "50%",
+                backgroundColor: currentBadge.bg,
+                border: `2px solid ${currentBadge.ring}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 20,
+                boxShadow: "0 1px 4px rgba(0,0,0,0.45)",
+                pointerEvents: "none",
+                }}
+            >
+                <span
+                style={{
+                    color: currentBadge.text,
+                    fontSize: "clamp(6px, 1.5vw, 11px)",
+                    fontWeight: 900,
+                    lineHeight: 1,
+                    fontFamily: "serif",
+                    letterSpacing: "-0.5px",
+                    userSelect: "none",
+                }}
+                >
+                {currentBadge.symbol}
+                </span>
+            </div>
             )}
         </div>
-    );
+        );
 
     return (
         <div className="min-h-screen flex flex-col bg-background text-foreground animate-in fade-in duration-500">
@@ -229,17 +253,15 @@ export default function PgnReviewPage() {
                                     <p className="font-medium animate-pulse">{loadingMsg}</p>
                                 </div>
                             )}
-                            <ReactChessboard
-                                options={{
-                                    position: fen,
-                                    boardOrientation: "white",
-                                    darkSquareStyle: { backgroundColor: "#769656" },
-                                    lightSquareStyle: { backgroundColor: "#eeeed2" },
-                                    allowDragging: false,
-                                    animationDurationInMs: 200,
-                                    squareRenderer,
-                                }}
-                            />
+                           <ReactChessboard
+                                position={fen}
+                                boardOrientation="white"
+                                customDarkSquareStyle={{ backgroundColor: "#769656" }}
+                                customLightSquareStyle={{ backgroundColor: "#eeeed2" }}
+                                arePiecesDraggable={false}
+                                animationDuration={200}
+                                customSquare={squareRenderer}
+                                />
                         </div>
 
                         <div className="flex items-center justify-between font-semibold px-2">
