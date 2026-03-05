@@ -298,7 +298,7 @@ export default function ReviewPage() {
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <div className="font-bold text-xl flex items-center gap-2 tracking-tight">
-                        ♟️ Reviewer
+                        Reviewer
                     </div>
                 </div>
                 <ThemeToggle />

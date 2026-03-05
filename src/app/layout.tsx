@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Chess Game Reviewer",
+  title: "OpenBoard",
   description: "Analyze your Chess.com games with Stockfish engine",
 };
 

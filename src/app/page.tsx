@@ -44,7 +44,7 @@ export default function Home() {
       {/* Navbar */}
       <header className="absolute top-0 w-full p-6 flex justify-between items-center z-10">
         <div className="font-bold text-xl tracking-tight flex items-center gap-2">
-          ♟️ <span className="hidden sm:inline">Chess Game Reviewer</span>
+          <span className="hidden sm:inline">OpenBoard</span>
         </div>
         <ThemeToggle />
       </header>

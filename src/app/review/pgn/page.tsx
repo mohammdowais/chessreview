@@ -200,7 +200,7 @@ export default function PgnReviewPage() {
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <div className="font-bold text-xl flex items-center gap-2 tracking-tight">
-                        ♟️ Reviewer <span className="text-xs font-normal text-muted-foreground bg-accent px-2 py-0.5 rounded-full">PGN</span>
+                        Reviewer <span className="text-xs font-normal text-muted-foreground bg-accent px-2 py-0.5 rounded-full">PGN</span>
                     </div>
                 </div>
                 <ThemeToggle />

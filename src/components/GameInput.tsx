@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { Search, Loader2, Link2, FileText } from "lucide-react";
 import { Chess } from "chess.js";
-import { AuthModal } from "@/components/AuthModal";
 import {
     GUEST_LIMIT,
     getOrCreateGuestToken,
@@ -21,8 +19,6 @@ export function GameInput() {
     const [pgn, setPgn] = useState("");
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const pendingActionRef = useRef<(() => void) | null>(null);
     const router = useRouter();
 
     // Reset error on tab switch
@@ -31,19 +27,10 @@ export function GameInput() {
     function checkGuestLimit(action: () => void) {
         const count = getGuestCount();
         if (count >= GUEST_LIMIT) {
-            pendingActionRef.current = action;
-            setShowAuthModal(true);
+            setError("Analysis limit reached for today. Please try again in 24 hours.");
             return;
         }
         action();
-    }
-
-    function handleAuthSuccess() {
-        setShowAuthModal(false);
-        if (pendingActionRef.current) {
-            pendingActionRef.current();
-            pendingActionRef.current = null;
-        }
     }
 
     // --- URL Tab ---
@@ -115,13 +102,6 @@ export function GameInput() {
 
     return (
         <>
-            {showAuthModal && (
-                <AuthModal
-                    onClose={() => setShowAuthModal(false)}
-                    onSuccess={handleAuthSuccess}
-                />
-            )}
-
             <div className="w-full max-w-2xl mx-auto flex flex-col items-center gap-4">
                 {/* Tabs */}
                 <div className="flex bg-card border border-border rounded-xl p-1 gap-1 w-full max-w-xs shadow-sm">
