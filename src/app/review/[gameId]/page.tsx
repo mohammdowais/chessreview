@@ -10,6 +10,27 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ChessEngine } from "@/lib/engine";
 import { getMoveClassification, getClassificationColor, MoveClassification } from "@/lib/chess-utils";
 
+// Inlined from react-chessboard/dist/types (package exports only exposes root)
+type SquareHandlerArgs = { piece: { pieceType: string } | null; square: string };
+
+// --- Classification badge config (chess.com-style) ---
+type BadgeConfig = { symbol: string; bg: string; text: string; ring: string };
+
+function getClassificationBadge(c: MoveClassification): BadgeConfig | null {
+    switch (c) {
+        case "Brilliant": return { symbol: "!!", bg: "#21c0c0", text: "#fff", ring: "#17a3a3" };
+        case "Great": return { symbol: "!", bg: "#5c99e0", text: "#fff", ring: "#3d7dc8" };
+        case "Best": return { symbol: "★", bg: "#5db55d", text: "#fff", ring: "#3d9a3d" };
+        case "Excellent": return { symbol: "!", bg: "#96c46a", text: "#fff", ring: "#7aaa4a" };
+        case "Good": return { symbol: "✓", bg: "#96c46a", text: "#fff", ring: "#7aaa4a" };
+        case "Book": return { symbol: "Ꞵ", bg: "#a88a5e", text: "#fff", ring: "#8a6e46" };
+        case "Inaccuracy": return { symbol: "?!", bg: "#f0c040", text: "#333", ring: "#d4a820" };
+        case "Mistake": return { symbol: "?", bg: "#e07020", text: "#fff", ring: "#c05010" };
+        case "Blunder": return { symbol: "??", bg: "#c0392b", text: "#fff", ring: "#922b21" };
+        default: return null;
+    }
+}
+
 // Dynamic import for React Chessboard to prevent Next.js SSR hydration mismatch
 const ReactChessboard = dynamic(() => import("react-chessboard").then(mod => mod.Chessboard), {
     ssr: false,
@@ -165,6 +186,56 @@ export default function ReviewPage() {
         setAnalyzing(false);
     };
 
+    // Destination square of the current move (e.g. "e2e4" → "e4")
+    const currentDestSquare = currentMoveIndex >= 0 && historyUci[currentMoveIndex]
+        ? historyUci[currentMoveIndex].slice(2, 4)
+        : null;
+    const currentClassification = currentMoveIndex >= 0 ? analyzedMoves[currentMoveIndex]?.classification : null;
+    const currentBadge = currentClassification ? getClassificationBadge(currentClassification) : null;
+
+    // squareRenderer: render a badge on the destination square of the played move
+    const squareRenderer = ({ square, children }: SquareHandlerArgs & { children?: React.ReactNode }) => (
+        <div style={{ position: "relative", width: "100%", height: "100%" }}>
+            {children}
+            {currentBadge && square === currentDestSquare && (
+                <div
+                    style={{
+                        position: "absolute",
+                        top: "2px",
+                        right: "2px",
+                        width: "28%",
+                        height: "28%",
+                        minWidth: 14,
+                        minHeight: 14,
+                        borderRadius: "50%",
+                        backgroundColor: currentBadge.bg,
+                        border: `2px solid ${currentBadge.ring}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 20,
+                        boxShadow: "0 1px 4px rgba(0,0,0,0.45)",
+                        pointerEvents: "none",
+                    }}
+                >
+                    <span
+                        style={{
+                            color: currentBadge.text,
+                            fontSize: "clamp(6px, 1.5vw, 11px)",
+                            fontWeight: 900,
+                            lineHeight: 1,
+                            fontFamily: "serif",
+                            letterSpacing: "-0.5px",
+                            userSelect: "none",
+                        }}
+                    >
+                        {currentBadge.symbol}
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+
     const handleMoveChange = (idx: number) => {
         if (idx < -1 || idx >= history.length) return;
 
@@ -265,6 +336,7 @@ export default function ReviewPage() {
                                     lightSquareStyle: { backgroundColor: "#eeeed2" },
                                     allowDragging: false,
                                     animationDurationInMs: 200,
+                                    squareRenderer,
                                 }}
                             />
                         </div>
