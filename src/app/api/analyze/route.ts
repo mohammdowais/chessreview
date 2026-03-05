@@ -1,7 +1,71 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
+
+// ----- In-Memory Rate Limiter -----
+type RateEntry = { count: number; resetAt: number };
+const rateLimitMap = new Map<string, RateEntry>();
+
+function getIp(req: Request): string {
+    const xff = req.headers.get('x-forwarded-for');
+    return xff ? xff.split(',')[0].trim() : 'unknown';
+}
+
+function checkRateLimit(ip: string, maxPerMin: number): { allowed: boolean; retryAfter?: number } {
+    const now = Date.now();
+    const entry = rateLimitMap.get(ip);
+
+    if (!entry || now > entry.resetAt) {
+        rateLimitMap.set(ip, { count: 1, resetAt: now + 60_000 });
+        return { allowed: true };
+    }
+    if (entry.count >= maxPerMin) {
+        return { allowed: false, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
+    }
+    entry.count++;
+    return { allowed: true };
+}
+
+// ----- In-Memory Guest Token Gate -----
+const guestTokenMap = new Map<string, number>(); // token -> count
 
 export async function POST(req: Request) {
     try {
+        const ip = getIp(req);
+        const session = await auth();
+        const isAuthed = !!session?.user;
+
+        // Rate limit: 60/min for authed, 10/min for guests
+        const limit = isAuthed ? 60 : 10;
+        const rl = checkRateLimit(ip, limit);
+        if (!rl.allowed) {
+            return NextResponse.json(
+                { error: 'Too many requests. Please slow down.' },
+                {
+                    status: 429,
+                    headers: { 'Retry-After': String(rl.retryAfter) },
+                }
+            );
+        }
+
+        // Guest-token gate (server-side defence for the 3-game limit)
+        if (!isAuthed) {
+            const guestToken = req.headers.get('x-guest-token');
+            if (!guestToken) {
+                return NextResponse.json(
+                    { error: 'bad_request', message: 'Guest token is required.' },
+                    { status: 400 }
+                );
+            }
+            const count = guestTokenMap.get(guestToken) ?? 0;
+            if (count >= 3) {
+                return NextResponse.json(
+                    { error: 'limit_reached', message: 'Sign in to analyze more games.' },
+                    { status: 403 }
+                );
+            }
+            guestTokenMap.set(guestToken, count + 1);
+        }
+
         const { gameId } = await req.json();
 
         if (!gameId) {
@@ -19,10 +83,8 @@ export async function POST(req: Request) {
         }
         const cbData = await cbRes.json();
 
-        // Some formats have players object
         const username = cbData?.players?.bottom?.username || cbData?.players?.top?.username;
         const endTime = cbData?.game?.endTime;
-        // Alternatively, if it is a daily game, the structure varies.
 
         if (!username || !endTime) {
             return NextResponse.json({ error: 'Unsupported game type or missing metadata' }, { status: 500 });
@@ -33,7 +95,7 @@ export async function POST(req: Request) {
         const year = date.getUTCFullYear();
         const month = String(date.getUTCMonth() + 1).padStart(2, '0');
 
-        // Step 3: Fetch the player's archive for that month using pub API
+        // Step 3: Fetch the player's archive for that month
         const archiveUrl = `https://api.chess.com/pub/player/${username}/games/${year}/${month}`;
         const archiveRes = await fetch(archiveUrl, {
             headers: { 'User-Agent': 'Chess Game Reviewer' }
@@ -46,14 +108,12 @@ export async function POST(req: Request) {
         const archiveData = await archiveRes.json();
         const games = archiveData.games || [];
 
-        // Find our specific game by matching gameId in the URL
-        const targetGame = games.find((g: any) => g.url && g.url.includes(gameId));
+        const targetGame = games.find((g: { url?: string }) => g.url && g.url.includes(gameId));
 
         if (!targetGame) {
             return NextResponse.json({ error: 'Game not found in player archive' }, { status: 404 });
         }
 
-        // Return the clean Standard PGN from Public API!
         return NextResponse.json({
             pgn: targetGame.pgn,
             white: targetGame.white,
@@ -61,11 +121,9 @@ export async function POST(req: Request) {
             timeClass: targetGame.time_class
         });
 
-    } catch (error: any) {
-        console.error("Analysis Error:", error);
-        return NextResponse.json(
-            { error: error.message || 'An error occurred during analysis.' },
-            { status: 500 }
-        );
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : 'An error occurred during analysis.';
+        console.error('Analysis Error:', error);
+        return NextResponse.json({ error: msg }, { status: 500 });
     }
 }
