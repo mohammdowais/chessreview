@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
+
+export const runtime = 'edge';
 
 // ----- In-Memory Rate Limiter -----
 type RateEntry = { count: number; resetAt: number };
