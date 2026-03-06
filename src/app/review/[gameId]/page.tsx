@@ -74,6 +74,14 @@ export default function ReviewPage() {
     const [analysisProgress, setAnalysisProgress] = useState(0);
     const [analyzedMoves, setAnalyzedMoves] = useState<MoveAnalysis[]>([]);
 
+    // Engine Settings
+    const [engineUrl, setEngineUrl] = useState("/stockfish.js");
+    const [engineName, setEngineName] = useState("Stockfish 18 Lite (7MB download)");
+    const [maxTime, setMaxTime] = useState(5);
+    const [numLines, setNumLines] = useState(3);
+    const [depth, setDepth] = useState(12);
+    const [showSettings, setShowSettings] = useState(false);
+
     const engineRef = useRef<ChessEngine | null>(null);
 
     const init = async () => {
@@ -151,7 +159,12 @@ export default function ReviewPage() {
         setAnalyzing(true);
         setAnalysisProgress(0);
 
-        engineRef.current = new ChessEngine();
+        // Destroy previous engine if it exists
+        if (engineRef.current) {
+            engineRef.current.destroy();
+        }
+
+        engineRef.current = new ChessEngine(engineUrl);
 
         // We need to evaluate the position at each step.
         const tempGame = new Chess();
@@ -169,8 +182,13 @@ export default function ReviewPage() {
             const currentFen = tempGame.fen();
 
             try {
-                // Note: depth 10 for faster analysis in frontend. Depth 15 can take ~2s per move.
-                const { evalScore, bestMove } = await engineRef.current.getEvaluation(currentFen, 12);
+                // Use maxTime (converted to ms) if set, otherwise depth
+                const { evalScore, bestMove } = await engineRef.current.getEvaluation(
+                    currentFen,
+                    depth,
+                    maxTime * 1000,
+                    numLines
+                );
 
                 const isWhiteMove = i % 2 === 0;
                 // If white moved, we want to see how much worse the evaluation got.
@@ -400,17 +418,33 @@ export default function ReviewPage() {
                     {/* Analysis Info Panel */}
                     <div className="bg-card border shadow-sm rounded-xl p-5 flex flex-col gap-3 shrink-0">
                         <div className="flex justify-between items-center border-b pb-2">
-                            <h2 className="text-lg font-bold">Analysis</h2>
-                            {analyzing ? (
-                                <div className="flex items-center gap-2 text-sm text-primary font-medium bg-primary/10 px-3 py-1 rounded-full">
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    {analysisProgress}% Analyzing
+                            <div className="flex flex-col">
+                                <h2 className="text-lg font-bold">Analysis</h2>
+                                <div className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
+                                    <span>{engineName.split(" (")[0]}</span>
+                                    <span>•</span>
+                                    <span>Depth {depth}</span>
                                 </div>
-                            ) : (
-                                <span className="text-xs bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-1 rounded font-bold uppercase tracking-wider">
-                                    Complete
-                                </span>
-                            )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setShowSettings(true)}
+                                    className="p-1.5 hover:bg-accent rounded-md transition-colors text-muted-foreground"
+                                    title="Engine Settings"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                </button>
+                                {analyzing ? (
+                                    <div className="flex items-center gap-2 text-sm text-primary font-medium bg-primary/10 px-3 py-1 rounded-full">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        {analysisProgress}% Analyzing
+                                    </div>
+                                ) : (
+                                    <span className="text-xs bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-1 rounded font-bold uppercase tracking-wider">
+                                        Complete
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
                         <div className="min-h-[80px] flex flex-col justify-center">
@@ -508,6 +542,114 @@ export default function ReviewPage() {
                 </div>
 
             </main>
+
+            {/* Settings Modal */}
+            {showSettings && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4">
+                    <div className="bg-card text-card-foreground rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-border animate-in zoom-in-95 duration-200">
+                        <div className="p-6 space-y-8">
+                            {/* Engine Section */}
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="font-medium text-muted-foreground">Chess Engine</span>
+                                    <span className="font-semibold">Stockfish 16</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium text-muted-foreground">Strength</span>
+                                    <div className="relative group w-3/5">
+                                        <select
+                                            disabled
+                                            className="w-full bg-accent/50 border border-border rounded-md px-3 py-2 text-sm appearance-none focus:outline-none cursor-not-allowed opacity-50"
+                                        >
+                                            <option>Fast (~1 sec, 3270 Rating)</option>
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Analysis Section */}
+                            <div className="space-y-4">
+                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest pt-2">Analysis</h3>
+
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium text-muted-foreground">Chess Engine</span>
+                                    <div className="relative w-3/5">
+                                        <select
+                                            value={engineName}
+                                            onChange={(e) => {
+                                                setEngineName(e.target.value);
+                                                setEngineUrl("/stockfish.js");
+                                            }}
+                                            className="w-full bg-accent border border-border rounded-md px-3 py-2 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                        >
+                                            <option value="Stockfish 18 Lite (7MB download)">Stockfish 18 Lite (7MB download)</option>
+                                            <option value="Torch 4 Lite (6MB download)">Torch 4 Lite (6MB download)</option>
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium text-muted-foreground">Maximum Time</span>
+                                    <div className="relative w-3/5">
+                                        <select
+                                            value={maxTime}
+                                            onChange={(e) => setMaxTime(Number(e.target.value))}
+                                            className="w-full bg-accent border border-border rounded-md px-3 py-2 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                        >
+                                            <option value={1}>1 sec</option>
+                                            <option value={3}>3 sec</option>
+                                            <option value={5}>5 sec</option>
+                                            <option value={10}>10 sec</option>
+                                            <option value={20}>20 sec</option>
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium text-muted-foreground">Number of Lines</span>
+                                    <div className="relative w-2/5">
+                                        <select
+                                            value={numLines}
+                                            onChange={(e) => setNumLines(Number(e.target.value))}
+                                            className="w-full bg-accent border border-border rounded-md px-3 py-2 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                        >
+                                            <option value={1}>1</option>
+                                            <option value={2}>2</option>
+                                            <option value={3}>3</option>
+                                            <option value={4}>4</option>
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4 pt-4">
+                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Cloud</h3>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-muted/30 border-t border-border flex justify-end">
+                            <button
+                                onClick={() => setShowSettings(false)}
+                                className="px-6 py-2 bg-primary text-primary-foreground rounded-md font-bold hover:opacity-90 transition-opacity"
+                            >
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

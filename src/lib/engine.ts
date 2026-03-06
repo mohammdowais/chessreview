@@ -3,10 +3,10 @@ export class ChessEngine {
     private isReady = false;
     private messageCallbacks: ((msg: string) => void)[] = [];
 
-    constructor() {
+    constructor(engineUrl: string = "/stockfish.js") {
         if (typeof window !== "undefined") {
-            // Load standard stockfish.js from public folder
-            this.worker = new Worker("/stockfish.js");
+            // Load engine script from provided URL
+            this.worker = new Worker(engineUrl);
 
             this.worker.onmessage = (e) => {
                 const msg = e.data;
@@ -19,6 +19,7 @@ export class ChessEngine {
 
             // initialize
             this.sendCommand("uci");
+            this.sendCommand("setoption name MultiPV value 1"); // Default to 1
         }
     }
 
@@ -36,7 +37,7 @@ export class ChessEngine {
         this.messageCallbacks = this.messageCallbacks.filter(c => c !== cb);
     }
 
-    public async getEvaluation(fen: string, depth = 15): Promise<{ evalScore: number; bestMove: string }> {
+    public async getEvaluation(fen: string, depth = 15, movetime?: number, multiPv = 1): Promise<{ evalScore: number; bestMove: string }> {
         return new Promise((resolve) => {
             let currentBestMove = "";
             let currentScore = 0; // Centipawns or Mate
@@ -74,8 +75,14 @@ export class ChessEngine {
             this.addMessageListener(listener);
 
             this.sendCommand("ucinewgame");
+            this.sendCommand(`setoption name MultiPV value ${multiPv}`);
             this.sendCommand(`position fen ${fen}`);
-            this.sendCommand(`go depth ${depth}`);
+
+            if (movetime) {
+                this.sendCommand(`go movetime ${movetime}`);
+            } else {
+                this.sendCommand(`go depth ${depth}`);
+            }
         });
     }
 
