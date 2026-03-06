@@ -11,8 +11,9 @@ import { getOrCreateGuestToken, isGuestLimitReached } from "@/lib/guest-utils";
 import { ChessEngine } from "@/lib/engine";
 import { getMoveClassification, getClassificationColor, MoveClassification } from "@/lib/chess-utils";
 type CustomSquareProps = {
-  square: string;
-  children?: React.ReactNode;
+    square: string;
+    style: React.CSSProperties;
+    children?: React.ReactNode;
 };
 // Inlined from react-chessboard/dist/types (package exports only exposes root)
 type SquareHandlerArgs = { piece: { pieceType: string } | null; square: string };
@@ -206,48 +207,48 @@ export default function ReviewPage() {
     const currentBadge = currentClassification ? getClassificationBadge(currentClassification) : null;
 
     // squareRenderer: render a badge on the destination square of the played move
-    const squareRenderer = ({ square, children }: CustomSquareProps) => (
-        <div style={{ position: "relative", width: "100%", height: "100%" }}>
+    const squareRenderer = ({ square, style, children }: CustomSquareProps) => (
+        <div style={{ ...style, position: "relative" }}>
             {children}
 
             {currentBadge && square === currentDestSquare && (
-            <div
-                style={{
-                position: "absolute",
-                top: "2px",
-                right: "2px",
-                width: "28%",
-                height: "28%",
-                minWidth: 14,
-                minHeight: 14,
-                borderRadius: "50%",
-                backgroundColor: currentBadge.bg,
-                border: `2px solid ${currentBadge.ring}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 20,
-                boxShadow: "0 1px 4px rgba(0,0,0,0.45)",
-                pointerEvents: "none",
-                }}
-            >
-                <span
-                style={{
-                    color: currentBadge.text,
-                    fontSize: "clamp(6px, 1.5vw, 11px)",
-                    fontWeight: 900,
-                    lineHeight: 1,
-                    fontFamily: "serif",
-                    letterSpacing: "-0.5px",
-                    userSelect: "none",
-                }}
+                <div
+                    style={{
+                        position: "absolute",
+                        top: "2px",
+                        right: "2px",
+                        width: "28%",
+                        height: "28%",
+                        minWidth: 14,
+                        minHeight: 14,
+                        borderRadius: "50%",
+                        backgroundColor: currentBadge.bg,
+                        border: `2px solid ${currentBadge.ring}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 20,
+                        boxShadow: "0 1px 4px rgba(0,0,0,0.45)",
+                        pointerEvents: "none",
+                    }}
                 >
-                {currentBadge.symbol}
-                </span>
-            </div>
+                    <span
+                        style={{
+                            color: currentBadge.text,
+                            fontSize: "clamp(6px, 1.5vw, 11px)",
+                            fontWeight: 900,
+                            lineHeight: 1,
+                            fontFamily: "serif",
+                            letterSpacing: "-0.5px",
+                            userSelect: "none",
+                        }}
+                    >
+                        {currentBadge.symbol}
+                    </span>
+                </div>
             )}
         </div>
-        );
+    );
 
     const handleMoveChange = (idx: number) => {
         if (idx < -1 || idx >= history.length) return;
@@ -349,7 +350,7 @@ export default function ReviewPage() {
                                 arePiecesDraggable={false}
                                 animationDuration={200}
                                 customSquare={squareRenderer}
-                                />
+                            />
                         </div>
 
                         {/* Player Bottom */}
