@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Chess } from "chess.js";
 import dynamic from "next/dynamic";
@@ -83,6 +83,7 @@ export default function ReviewPage() {
     const [showSettings, setShowSettings] = useState(false);
 
     const engineRef = useRef<ChessEngine | null>(null);
+    const analysisIdRef = useRef(0);
 
     const init = async () => {
         if (isGuestLimitReached()) {
@@ -156,6 +157,7 @@ export default function ReviewPage() {
     }, [gameId]);
 
     const startAnalysis = async (movesSan: string[], movesUci: string[]) => {
+        const analysisId = ++analysisIdRef.current;
         setAnalyzing(true);
         setAnalysisProgress(0);
 
@@ -205,16 +207,21 @@ export default function ReviewPage() {
                 });
 
                 prevEval = evalScore; // store for next iteration
+
+                if (analysisId !== analysisIdRef.current) return;
                 setAnalyzedMoves([...results]); // trigger UI update progressively
 
                 // If it's a huge blunder or mate, users want to see it quickly, but we just continue
             } catch (e) {
+                if (analysisId !== analysisIdRef.current) return;
                 console.error("Engine evaluation failed for move", i, e);
                 break;
             }
         }
 
-        setAnalyzing(false);
+        if (analysisId === analysisIdRef.current) {
+            setAnalyzing(false);
+        }
     };
 
     // Destination square of the current move (e.g. "e2e4" → "e4")
@@ -225,7 +232,7 @@ export default function ReviewPage() {
     const currentBadge = currentClassification ? getClassificationBadge(currentClassification) : null;
 
     // squareRenderer: render a badge on the destination square of the played move
-    const squareRenderer = ({ square, style, children }: CustomSquareProps) => (
+    const squareRenderer = useCallback(({ square, style, children }: CustomSquareProps) => (
         <div style={{ ...style, position: "relative" }}>
             {children}
 
@@ -266,9 +273,9 @@ export default function ReviewPage() {
                 </div>
             )}
         </div>
-    );
+    ), [currentBadge, currentDestSquare]);
 
-    const handleMoveChange = (idx: number) => {
+    const handleMoveChange = useCallback((idx: number) => {
         if (idx < -1 || idx >= history.length) return;
 
         setCurrentMoveIndex(idx);
@@ -284,7 +291,7 @@ export default function ReviewPage() {
             temp.move(history[i]);
         }
         setFen(temp.fen());
-    };
+    }, [history]);
 
 
     if (error && history.length === 0) {
